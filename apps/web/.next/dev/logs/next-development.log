@@ -1,0 +1,5 @@
+{"timestamp":"00:00:01.775","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:09.329","source":"Server","level":"LOG","message":"○ Compiling / ..."}
+{"timestamp":"00:00:11.887","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:00:12.730","source":"Browser","level":"ERROR","message":"Error: AJAXError: NetworkError when attempting to fetch resource. (0): https://basemaps.cartocdn.com/gl/dark-matter-nolabels/style.json"}
+{"timestamp":"00:00:12.731","source":"Server","level":"ERROR","message":"[browser] \"\\u001b[31mError: AJAXError: NetworkError when attempting to fetch resource. (0): https://basemaps.cartocdn.com/gl/dark-matter-nolabels/style.json\\u001b[39m\""}

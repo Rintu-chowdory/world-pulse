@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+:root {
+  --bg: #090b10;
+  --panel: #10141c;
+  --panel-raised: #151b26;
+  --border: #1e2530;
+  --text: #e7ecf2;
+  --muted: #7c8798;
+  --live: #17e3c4;
+  --critical: #ff4557;
+  --warning: #ff9f40;
+  --advisory: #ffd23f;
+  --info: #3e9bff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-live: var(--live);
+  --color-critical: var(--critical);
+  --color-warning: var(--warning);
+  --color-advisory: var(--advisory);
+  --color-info: var(--info);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--live);
+  color: #04140f;
+}
+
+.maplibregl-popup-content {
+  background: var(--panel-raised) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-sans);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--panel-raised) !important;
+}
+
+.maplibregl-ctrl-attrib {
+  background: transparent !important;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.live-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: 0; }
+}
+
+.pulse-line path {
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: dash 2.4s ease-out forwards;
+}

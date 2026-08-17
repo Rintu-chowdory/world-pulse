@@ -1,0 +1,39 @@
+name: World Pulse production monitoring
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-probe:
+    name: Probe production services
+    runs-on: ubuntu-latest
+    env:
+      WORLD_PULSE_API_URL: ${{ vars.WORLD_PULSE_API_URL }}
+      WORLD_PULSE_WEB_URL: ${{ vars.WORLD_PULSE_WEB_URL }}
+      MONITOR_ALERT_WEBHOOK_URL: ${{ secrets.MONITOR_ALERT_WEBHOOK_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate monitoring configuration
+        run: |
+          test -n "$WORLD_PULSE_API_URL"
+          test -n "$WORLD_PULSE_WEB_URL"
+
+      - name: Probe Render API and Cloudflare frontend
+        id: probe
+        run: bash scripts/check-production.sh
+
+      - name: Send alert webhook
+        if: failure() && env.MONITOR_ALERT_WEBHOOK_URL != ''
+        env:
+          ALERT_TEXT: "World Pulse production probe failed for commit ${{ github.sha }}. Review the GitHub Actions run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          curl --fail-with-body --request POST "$MONITOR_ALERT_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            --data "{\"text\":\"${ALERT_TEXT}\"}"

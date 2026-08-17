@@ -1,0 +1,150 @@
+name: World Pulse CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: world-pulse-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-check:
+    name: API checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Compile backend
+        run: python -m py_compile app/*.py
+
+      - name: Exercise health and metrics endpoints
+        working-directory: .
+        env:
+          ENABLE_LIVE_INGESTION: "false"
+          ENABLE_AI_ENRICHMENT: "false"
+        run: bash scripts/test_v10_api.sh
+
+  web-check:
+    name: Web checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Cloudflare artifact
+        run: npm run build
+
+      - name: Verify static export
+        run: test -f out/index.html
+
+  deploy-cloudflare:
+    name: Deploy Cloudflare Pages
+    needs: [api-check, web-check]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-cloudflare
+      url: ${{ vars.CLOUDFLARE_PAGES_URL }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build static export
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}
+        run: npm run build
+
+      - name: Deploy with Wrangler
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_PAGES_PROJECT != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/out --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Explain skipped deployment
+        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == '' || env.CLOUDFLARE_PAGES_PROJECT == ''
+        run: echo "Cloudflare deployment skipped; configure the production environment secrets and variables."
+
+  deploy-render:
+    name: Deploy Render API
+    needs: [api-check, web-check]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-render
+      url: ${{ vars.RENDER_API_URL }}
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      RENDER_API_URL: ${{ vars.RENDER_API_URL }}
+    steps:
+      - name: Trigger Render deploy hook
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        run: curl --fail-with-body --retry 3 --retry-delay 5 --request POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Wait for Render health
+        if: env.RENDER_DEPLOY_HOOK_URL != '' && env.RENDER_API_URL != ''
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 5 "$RENDER_API_URL/api/v1/ready"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Render readiness probe did not pass within five minutes."
+          exit 1
+
+      - name: Explain skipped deployment
+        if: env.RENDER_DEPLOY_HOOK_URL == ''
+        run: echo "Render deploy hook skipped; alternatively configure Render Auto-Deploy to After CI Checks Pass."

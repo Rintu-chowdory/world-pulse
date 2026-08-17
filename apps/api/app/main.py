@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ai_engine import AIEnrichmentEngine
@@ -16,8 +16,11 @@ from .ingestion import EventStore, IngestionSupervisor, WebSocketHub
 from .main_types import AIEnrichRequest, AskRequest, AskResponse, Event, EventCategory, EventSeverity
 from .persistence import PostgresEventRepository
 from .scaling import RedisEventBus
+from .observability import Metrics, RequestMetricsMiddleware, configure_logging
 
+configure_logging()
 logger = logging.getLogger("world_pulse.api")
+metrics = Metrics()
 
 
 def demo_events() -> list[Event]:
@@ -82,13 +85,19 @@ async def lifespan(app: FastAPI):
     bus = RedisEventBus(hub)
 
     async def on_ai_enriched(enriched: Event, enrichment: object) -> None:
+        metrics.ai_enrichments["completed"] += 1
         await store.upsert_event(enriched)
         await bus.publish({"type": "event.ai_enriched", "event": enriched.model_dump(mode="json"), "enrichment": getattr(enrichment, "model_dump", lambda **_: enrichment)(mode="json"), "sent_at": datetime.now(timezone.utc).isoformat()})
 
     ai_engine = AIEnrichmentEngine(on_enriched=on_ai_enriched)
     await bus.start()
     await ai_engine.start()
-    supervisor = IngestionSupervisor(store, hub, broadcaster=bus, on_event=ai_engine.enqueue)
+
+    async def on_ingested(event: Event) -> None:
+        metrics.events_ingested[event.source] += 1
+        await ai_engine.enqueue(event)
+
+    supervisor = IngestionSupervisor(store, hub, broadcaster=bus, on_event=on_ingested)
     app.state.event_store = store
     app.state.websocket_hub = hub
     app.state.ingestion = supervisor
@@ -104,7 +113,8 @@ async def lifespan(app: FastAPI):
         await repository.stop()
 
 
-app = FastAPI(title="World Pulse API", version="0.8.0", lifespan=lifespan)
+app = FastAPI(title="World Pulse API", version="1.0.0", lifespan=lifespan)
+app.add_middleware(RequestMetricsMiddleware, metrics=metrics)
 allowed_origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 
@@ -113,6 +123,24 @@ app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=
 async def health():
     store: EventStore = app.state.event_store
     return {"status": "ok", "time": datetime.now(timezone.utc), "events": len(await store.snapshot()), "live_ingestion": app.state.ingestion.enabled, "postgis": bool(app.state.repository), "redis": app.state.event_bus.distributed, "ai_enrichment": app.state.ai_engine.enabled}
+
+
+@app.get("/api/v1/ready")
+async def ready():
+    if not hasattr(app.state, "event_store"):
+        raise HTTPException(status_code=503, detail="application starting")
+    require_postgis = os.getenv("REQUIRE_POSTGIS", "false").lower() in {"1", "true", "yes"}
+    require_redis = os.getenv("REQUIRE_REDIS", "false").lower() in {"1", "true", "yes"}
+    if require_postgis and not app.state.repository:
+        raise HTTPException(status_code=503, detail="postgis unavailable")
+    if require_redis and not app.state.event_bus.distributed:
+        raise HTTPException(status_code=503, detail="redis unavailable")
+    return {"status": "ready", "postgis": bool(app.state.repository), "redis": app.state.event_bus.distributed, "requirements": {"postgis": require_postgis, "redis": require_redis}}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics_endpoint():
+    return Response(content=metrics.render({"postgis": bool(app.state.repository), "redis": app.state.event_bus.distributed}), media_type="text/plain; version=0.0.4")
 
 
 @app.get("/api/v1/events", response_model=list[Event])

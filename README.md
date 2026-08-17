@@ -2,9 +2,9 @@
 
 World Pulse is a global event intelligence platform for seeing what is happening around the world with less noise and more context. The project combines a dark geospatial command center, live event filtering, ranked signal summaries, and Pulse AI decision support.
 
-## Current release: V0.8 — AI enrichment and production scaling foundation
+## Current release: V1.0 — production delivery and observability foundation
 
-The upgraded experience includes a professional situation-room layout, responsive dark visual system, live world map framing, signal priority panel, metric strip, improved event exploration, an AI assistant with guided questions, real USGS earthquake ingestion, optional NASA FIRMS fire ingestion, normalized event contracts, a lifecycle-managed ingestion supervisor, WebSocket delivery, optional PostGIS persistence, Redis pub/sub fan-out, and a V0.8 OpenAI-backed summarization/classification worker. The AI endpoints use deterministic fallbacks when no model credentials are configured, so the interface remains useful in every environment.
+The upgraded experience includes a professional situation-room layout, responsive dark visual system, live world map framing, signal priority panel, metric strip, improved event exploration, an AI assistant with guided questions, real USGS earthquake ingestion, optional NASA FIRMS fire ingestion, normalized event contracts, a lifecycle-managed ingestion supervisor, WebSocket delivery, optional PostGIS persistence, Redis pub/sub fan-out, a V0.8 OpenAI-backed summarization/classification worker, V1.0 CI/CD automation, readiness probes, structured logs, and Prometheus-compatible metrics. The AI endpoints use deterministic fallbacks when no model credentials are configured, so the interface remains useful in every environment.
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
@@ -63,7 +63,9 @@ After changing a Cloudflare Pages environment variable, trigger a new frontend d
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/v1/health` | Health check |
+| `GET` | `/api/v1/health` | Liveness and dependency status |
+| `GET` | `/api/v1/ready` | Deployment readiness probe; optionally enforces PostGIS and Redis |
+| `GET` | `/metrics` | Prometheus-compatible request, ingestion, AI, and runtime metrics |
 | `GET` | `/api/v1/events` | Event list with `category`, `severity`, and `q` filters |
 | `GET` | `/api/v1/events/{event_id}` | Single event lookup |
 | `GET` | `/api/v1/stats` | Current totals by category |
@@ -107,6 +109,16 @@ Set `REDIS_URL` to a managed Redis instance. The API publishes typed event messa
 
 For Render, deploy the API as a long-running web service with WebSocket support, configure the environment variables above, run the migration before enabling multiple instances, and verify `/api/v1/health` reports `postgis: true` and `redis: true`. The frontend continues to use HTTP for reads and AI requests and WSS for live event-state changes.
 
+## V1.0 CI/CD and monitoring
+
+The repository now includes `.github/workflows/ci-cd.yml`. Pull requests run Python compilation, API smoke tests, the Next.js production build, and a static-export check. Successful pushes to `main` can deploy the Cloudflare Pages artifact with Wrangler and trigger the Render API deploy hook. Both deployment steps are conditional, so the workflow remains safe until the production environment secrets and variables are configured. Render can also be configured to deploy “After CI Checks Pass,” which provides an additional deployment gate.[3]
+
+Configure the `production-cloudflare` GitHub Environment with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets and `CLOUDFLARE_PAGES_PROJECT`, `CLOUDFLARE_PAGES_URL`, and `NEXT_PUBLIC_API_BASE` variables. Configure the `production-render` environment with the `RENDER_DEPLOY_HOOK_URL` secret and `RENDER_API_URL` variable. Cloudflare’s token should be scoped to Account / Cloudflare Pages / Edit, and Render deploy-hook URLs must be treated as secrets.[4] [5]
+
+The repository includes `render.yaml` with `healthCheckPath: /api/v1/ready`. Set `REQUIRE_POSTGIS=true` and `REQUIRE_REDIS=true` in the production API only after managed PostGIS and Redis are connected; otherwise the service can start in compatibility mode while infrastructure is being provisioned. Render’s HTTP health checks accept a 2xx or 3xx response within five seconds and use the result during deploy cutover and instance recovery.[6]
+
+`.github/workflows/monitoring.yml` runs every 15 minutes and checks `/api/v1/ready`, `/api/v1/health`, `/api/v1/events`, `/metrics`, and the Cloudflare homepage. If `MONITOR_ALERT_WEBHOOK_URL` is configured, failures send a generic JSON alert payload to the configured incident channel. The service also emits JSON logs and counters through `/metrics`, making it straightforward to scrape with a managed monitoring provider or a Prometheus-compatible collector. The monitoring workflow is a useful baseline; for stronger SLOs, add an external probe provider so checks continue even if GitHub Actions is unavailable.
+
 ## Roadmap
 
 The next production steps are GDACS and weather adapters, replay cursors, alert subscriptions, authentication, observability, source-quality workflows, and a formal AI evaluation dashboard. Pulse AI remains behind server-side routes so provider credentials never reach the browser.
@@ -116,3 +128,11 @@ The next production steps are GDACS and weather adapters, replay cursors, alert 
 [1] [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 
 [2] [OpenAI Batch API](https://developers.openai.com/api/docs/guides/batch)
+
+[3] [Render Deploys and CI Checks](https://render.com/docs/deploys)
+
+[4] [Cloudflare Pages Direct Upload with CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/)
+
+[5] [Render Deploy Hooks](https://render.com/docs/deploy-hooks)
+
+[6] [Render Health Checks](https://render.com/docs/health-checks)

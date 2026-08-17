@@ -13,17 +13,17 @@ jobs:
     name: Probe production services
     runs-on: ubuntu-latest
     env:
-      WORLD_PULSE_API_URL: ${{ vars.WORLD_PULSE_API_URL }}
-      WORLD_PULSE_WEB_URL: ${{ vars.WORLD_PULSE_WEB_URL }}
+      WORLD_PULSE_API_URL: ${{ vars.WORLD_PULSE_API_URL || 'https://world-pulse-api.onrender.com' }}
+      WORLD_PULSE_WEB_URL: ${{ vars.WORLD_PULSE_WEB_URL || 'https://world-pulse-web.pages.dev' }}
       MONITOR_ALERT_WEBHOOK_URL: ${{ secrets.MONITOR_ALERT_WEBHOOK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Validate monitoring configuration
+      - name: Show monitoring targets
         run: |
-          test -n "$WORLD_PULSE_API_URL"
-          test -n "$WORLD_PULSE_WEB_URL"
+          echo "API target: $WORLD_PULSE_API_URL"
+          echo "Web target: $WORLD_PULSE_WEB_URL"
 
       - name: Probe Render API and Cloudflare frontend
         id: probe

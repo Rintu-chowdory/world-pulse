@@ -40,7 +40,7 @@ export interface AskResponse {
   sources: string[];
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "https://world-pulse-api.onrender.com").replace(/\/$/, "");
 
 export async function fetchEvents(params?: {
   category?: EventCategory;

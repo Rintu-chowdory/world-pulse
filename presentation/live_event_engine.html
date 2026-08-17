@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>V0.4 live event engine</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;position:relative;padding:56px 72px 0}
+.eyebrow{font:10px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}
+h1{font-size:49px;line-height:1;letter-spacing:-3px;margin:20px 0 10px;max-width:760px} .lead{font-size:16px;line-height:1.5;color:#91a0ae;max-width:660px;margin:0}
+.pipeline{display:grid;grid-template-columns:1fr 58px 1fr 58px 1fr 58px 1fr;align-items:stretch;margin-top:24px;min-height:210px}.stage{border-top:1px solid #243241;border-bottom:1px solid #243241;padding:12px 18px 0 0}.stage-no{font:31px "Courier New",monospace;color:#56e1cf}.stage h2{font-size:18px;margin:12px 0 8px}.stage p{font-size:11px;line-height:1.55;color:#91a0ae;max-width:190px;margin:0}.stage small{display:block;color:#60717c;font:9px "Courier New",monospace;letter-spacing:.7px;text-transform:uppercase;margin-top:16px}.arrow{display:flex;align-items:center;justify-content:center;color:#56e1cf;font:22px "Courier New",monospace;border-top:1px solid #243241;border-bottom:1px solid #243241}.stage.source-a{border-top-color:#ffb15c}.stage.source-b{border-top-color:#56e1cf}.stage.store{border-top-color:#f6d476}.stage.broadcast{border-top-color:#ff6474}
+.ops{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:20px;border-top:1px solid #243241}.op{padding:12px 26px 0 0;border-right:1px solid #243241;margin-right:26px}.op:last-child{border-right:0;margin-right:0}.op-label{font:9px "Courier New",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#56e1cf}.op h3{font-size:16px;margin:10px 0 7px}.op p{font-size:11px;line-height:1.5;color:#91a0ae;max-width:280px;margin:0}.foot{position:absolute;bottom:28px;left:72px;right:72px;border-top:1px solid #243241;padding-top:11px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="eyebrow">05 / V0.4 live event engine</div>
+  <h1>A small supervisor.<br /><span style="color:#56e1cf">Clear boundaries.</span></h1>
+  <p class="lead">Independent source pollers run under the FastAPI lifecycle, publish normalized changes, and degrade transparently when a provider is unavailable.</p>
+  <section class="pipeline">
+    <div class="stage source-a"><div class="stage-no">01</div><h2>Poll sources</h2><p>USGS GeoJSON and NASA FIRMS CSV run on independent intervals.</p><small>async + bounded</small></div>
+    <div class="arrow">→</div>
+    <div class="stage source-b"><div class="stage-no">02</div><h2>Normalize</h2><p>Validate, assign stable IDs, calculate severity, and cluster fire detections.</p><small>one event contract</small></div>
+    <div class="arrow">→</div>
+    <div class="stage store"><div class="stage-no">03</div><h2>Store changes</h2><p>Compare source state, upsert changed events, and remove stale records.</p><small>event store</small></div>
+    <div class="arrow">→</div>
+    <div class="stage broadcast"><div class="stage-no">04</div><h2>Broadcast</h2><p>Send typed updates to every connected situation-room client.</p><small>WebSocket hub</small></div>
+  </section>
+  <section class="ops">
+    <div class="op"><div class="op-label">Lifecycle managed</div><h3>Starts with the service</h3><p>FastAPI startup creates the supervisor; shutdown cancels the task cleanly instead of leaving a hidden shell process behind.</p></div>
+    <div class="op"><div class="op-label">Failure contained</div><h3>One source can fail</h3><p>USGS and FIRMS errors are emitted as source.error messages while the last healthy state remains available to analysts.</p></div>
+    <div class="op"><div class="op-label">Scale path</div><h3>One instance → shared bus</h3><p>First deployment uses one Render process. Horizontal scale moves fan-out to Redis Streams or Pub/Sub and history to PostGIS.</p></div>
+  </section>
+  <div class="foot"><span>WORLD PULSE / INGESTION SUPERVISOR</span><span>UPsert · REMOVE · HEARTBEAT · SOURCE.ERROR</span></div>
+</div>
+</body>
+</html>

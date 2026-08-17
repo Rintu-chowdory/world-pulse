@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { CATEGORY_META, EventCategory, fetchEvents, fetchStats, PulseEvent, Stats, timeAgo } from "@/lib/api";
+import { CATEGORY_META, connectToEventStream, EventCategory, fetchEvents, fetchStats, PulseEvent, Stats, timeAgo } from "@/lib/api";
 import AIAssistant from "@/components/AIAssistant";
 import LiveFeed from "@/components/LiveFeed";
 import FilterBar from "@/components/FilterBar";
@@ -22,6 +22,15 @@ export default function Home() {
   const [error, setError] = useState(false);
 
   useEffect(() => { fetchStats().then(setStats).catch(() => setError(true)); }, []);
+  useEffect(() => {
+    const socket = connectToEventStream((message) => {
+      if (message.type === "snapshot" && message.events) setEvents(message.events);
+      if (message.type === "event.upsert" && message.event) setEvents((current) => [message.event!, ...current.filter((event) => event.id !== message.event!.id)].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      if (message.type === "event.remove" && message.event_id) setEvents((current) => current.filter((event) => event.id !== message.event_id));
+    });
+    socket.onerror = () => setError(true);
+    return () => socket.close();
+  }, []);
   useEffect(() => {
     const handle = setTimeout(() => {
       fetchEvents({ category: category ?? undefined, q: query || undefined }).then((data) => { setEvents(data); setError(false); }).catch(() => setError(true));

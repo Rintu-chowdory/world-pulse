@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>World Pulse — AI Global Situation Room</title>
+<style>
+*{box-sizing:border-box} body{margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden;padding:68px 76px 0;display:flex;justify-content:space-between}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(86,225,207,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(86,225,207,.055) 1px,transparent 1px);background-size:80px 80px;opacity:.45}.glow{position:absolute;width:420px;min-height:420px;border-radius:50%;right:70px;top:110px;background:radial-gradient(circle,rgba(86,225,207,.11),transparent 64%)}
+.left{position:relative;z-index:2;width:58%;display:flex;flex-direction:column;justify-content:flex-start;min-height:0}
+.kicker{font:11px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}
+.kicker i{display:inline-block;width:7px;min-height:7px;border-radius:50%;background:#56e1cf;margin-right:8px;box-shadow:0 0 14px #56e1cf}
+.title{font-size:92px;line-height:.9;letter-spacing:-6px;margin:0;font-weight:700}
+.title span{color:#56e1cf}
+.sub{font:22px/1.35 Arial,Helvetica,sans-serif;color:#aab8c0;max-width:550px;margin-top:18px}
+.promise{font:12px "Courier New",monospace;letter-spacing:1px;color:#60717c;text-transform:uppercase;padding-bottom:12px;margin-top:18px}
+.promise strong{color:#edf4f6;font-weight:400}
+.right{position:relative;z-index:2;width:38%;display:flex;align-items:center;justify-content:center}
+.radar{width:320px;min-height:320px;border:1px solid rgba(86,225,207,.28);border-radius:50%;position:relative;display:grid;place-items:center}
+.radar:before,.radar:after{content:"";position:absolute;border:1px solid rgba(86,225,207,.2);border-radius:50%}
+.radar:before{width:220px;min-height:220px}
+.radar:after{width:110px;min-height:110px}
+.cross-h,.cross-v{position:absolute;background:rgba(86,225,207,.22)}.cross-h{width:100%;min-height:1px}.cross-v{height:100%;min-width:1px}
+.core{width:48px;min-height:48px;border:1px solid #56e1cf;border-radius:50%;display:grid;place-items:center;color:#56e1cf;font-size:24px;box-shadow:0 0 0 16px rgba(86,225,207,.05),0 0 42px rgba(86,225,207,.3)}
+.tag{position:absolute;font:10px "Courier New",monospace;letter-spacing:1px;color:#56e1cf;line-height:1.45}.tag span{display:block;color:#72828c;font-size:8px}
+.tag-a{right:-30px;top:36px}.tag-b{left:-8px;bottom:40px;color:#ffb15c}.tag-c{right:72px;bottom:-30px;color:#ff6474}
+.footerline{position:absolute;bottom:30px;left:76px;right:76px;border-top:1px solid #243241;padding-top:12px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="grid"></div><div class="glow"></div>
+  <section class="left"><div><div class="kicker"><i></i>Global event intelligence / architecture brief</div><h1 class="title">WORLD<br /><span>PULSE</span></h1><p class="sub">AI-powered global situation room for the signals shaping a changing world.</p></div><div class="promise"><strong>See what is happening.</strong> Understand why it matters. Decide what to watch next.</div></section>
+  <section class="right"><div class="radar"><div class="cross-h"></div><div class="cross-v"></div><div class="core">◉</div><div class="tag tag-a">LIVE INDEX<span>GLOBAL / 24H</span></div><div class="tag tag-b">SOURCE LAYER<span>USGS + FIRMS</span></div><div class="tag tag-c">AI READY<span>GROUNDED ANSWERS</span></div></div></section>
+  <div class="footerline"><span>V0.3 — V0.4 / 2026</span><span>AI · INGESTION · WEBSOCKETS · MAP</span></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WebSocket delivery</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;position:relative;padding:58px 72px 0}
+.eyebrow{font:10px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}.title{font-size:48px;line-height:1;letter-spacing:-3px;margin:22px 0 12px}.lead{font-size:17px;line-height:1.45;color:#91a0ae;max-width:660px;margin:0}
+.status{position:absolute;right:72px;top:70px;color:#56e1cf;font:10px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}.status i{display:inline-block;width:7px;min-height:7px;border-radius:50%;background:#56e1cf;box-shadow:0 0 12px #56e1cf;margin-right:7px}
+.flow{display:grid;grid-template-columns:190px 1fr 190px 1fr 190px 1fr 190px;align-items:center;margin-top:54px}
+.node{min-height:142px;border-top:1px solid #37515c;border-bottom:1px solid #243241;padding:22px 14px 0;background:#111a24}
+.node.primary{border-color:#56e1cf;background:#102329}.node-number{font:25px "Courier New",monospace;color:#56e1cf}.node h2{font-size:16px;line-height:1.1;margin:13px 0 7px}.node p{font:10px/1.45 "Courier New",monospace;color:#91a0ae;margin:0}
+.arrow{height:1px;background:#37515c;position:relative}
+.arrow:after{content:"";position:absolute;right:0;top:-4px;width:8px;height:8px;border-top:1px solid #56e1cf;border-right:1px solid #56e1cf;transform:rotate(45deg)}.arrow-label{position:absolute;left:50%;transform:translateX(-50%);top:-21px;white-space:nowrap;color:#60717c;font:9px "Courier New",monospace;text-transform:uppercase;letter-spacing:1px}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:46px;border-top:1px solid #243241;padding-top:22px}.lower h3{font:10px "Courier New",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#56e1cf;margin:0 0 16px}.messages{display:flex;gap:9px;flex-wrap:wrap}.message{font:10px "Courier New",monospace;color:#aab8c0;border:1px solid #243241;padding:9px 11px;background:#111a24}.message.hot{color:#ff6474;border-color:#6a3840}.message.warm{color:#ffb15c;border-color:#5c4632}.message.cool{color:#56e1cf;border-color:#28534f}.lower p{font-size:12px;line-height:1.6;color:#91a0ae;margin:0;max-width:420px}.lower strong{color:#edf4f6;font-weight:500}.foot{position:absolute;bottom:20px;left:72px;right:72px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="eyebrow">05 / Live delivery</div>
+  <div class="status"><i></i>WebSocket channel / connected</div>
+  <h1 class="title">The map should feel alive.</h1>
+  <p class="lead">A single WebSocket channel delivers the initial operating picture, then only the changes required to keep the dashboard current.</p>
+  <section class="flow">
+    <div class="node primary"><div class="node-number">01</div><h2>Browser</h2><p>Opens<br>/ws/events</p></div>
+    <div class="arrow"><span class="arrow-label">connect</span></div>
+    <div class="node"><div class="node-number">02</div><h2>Snapshot</h2><p>Normalized<br>event state</p></div>
+    <div class="arrow"><span class="arrow-label">poll completes</span></div>
+    <div class="node"><div class="node-number">03</div><h2>Hub</h2><p>Broadcasts<br>typed changes</p></div>
+    <div class="arrow"><span class="arrow-label">in place</span></div>
+    <div class="node primary"><div class="node-number">04</div><h2>Situation room</h2><p>Map · feed ·<br>signal panel</p></div>
+  </section>
+  <section class="lower">
+    <div><h3>Typed message contract</h3><div class="messages"><span class="message cool">event.upsert</span><span class="message hot">event.remove</span><span class="message warm">source.error</span><span class="message cool">heartbeat</span><span class="message">snapshot.updated</span></div></div>
+    <div><h3>Why this split matters</h3><p><strong>HTTP remains predictable</strong> for filtered reads and AI requests. WebSocket carries only event-state changes, keeping delivery low-latency without coupling every view to the ingestion layer.</p></div>
+  </section>
+  <div class="foot"><span>WORLD PULSE / V0.4</span><span>NO MANUAL REFRESH · NORMALIZED EVENTS · LIVE STATE</span></div>
+</div>
+</body>
+</html>

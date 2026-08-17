@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deployment topology</title>
+<style>
+*{box-sizing:border-box}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;position:relative;padding:54px 72px 0}
+.eyebrow{font:10px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}
+h1{font-size:47px;line-height:1;letter-spacing:-2.5px;margin:19px 0 10px}.lead{font-size:15px;line-height:1.5;color:#91a0ae;max-width:700px;margin:0}.lead strong{color:#edf4f6;font-weight:500}
+.topology{position:relative;min-height:360px;margin-top:-40px}
+.node{position:absolute;border:1px solid #2a3d4a;background:#111a24;padding:10px 12px}.node-code{font:9px "Courier New",monospace;letter-spacing:1.4px;text-transform:uppercase;color:#56e1cf}.node h2{font-size:16px;margin:8px 0 6px}.node p{font-size:10px;line-height:1.45;color:#91a0ae;margin:0}.node.browser{left:0;top:48px;width:172px;min-height:92px;border-top:2px solid #56e1cf}.node.cloudflare{left:258px;top:48px;width:175px;min-height:92px;border-top:2px solid #56e1cf}.node.render{left:506px;top:20px;width:270px;min-height:150px;border:1px solid #56e1cf;background:#102329;padding:14px 16px}.node.render h2{font-size:23px;letter-spacing:-.5px}.node.render p{max-width:220px}.node.render .subline{margin-top:12px;color:#56e1cf;font:9px "Courier New",monospace;text-transform:uppercase;letter-spacing:1px}.node.source{width:190px;min-height:96px;top:226px}.node.usgs{left:0;border-top:2px solid #56e1cf}.node.firms{left:228px;border-top:2px solid #ff6474}.node.ai{left:456px;border-top:2px solid #ffb15c}.node.data{left:684px;border-top:2px solid #f6d476}.node.data2{left:912px;border-top:2px solid #f6d476}
+.connector{position:absolute;background:#35505b}.h1{left:172px;top:94px;width:86px;height:1px}.h2{left:433px;top:94px;width:73px;height:1px}.h3{left:776px;top:94px;width:96px;height:1px}.v1{left:641px;top:170px;width:1px;height:56px}.v2{left:95px;top:170px;width:1px;height:56px}.v3{left:323px;top:170px;width:1px;height:56px}.v4{left:551px;top:170px;width:1px;height:56px}.v5{left:779px;top:170px;width:1px;height:56px}.v6{left:1007px;top:170px;width:1px;height:56px}.arrow{position:absolute;color:#56e1cf;font:16px "Courier New",monospace}.arrow.a1{left:241px;top:83px}.arrow.a2{left:470px;top:83px}.arrow.a3{left:821px;top:83px}.arrow.down{left:635px;top:191px}
+.boundary{position:absolute;left:0;right:0;top:184px;border-top:1px dashed #243241;color:#60717c;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase;padding-top:8px}.boundary span{color:#56e1cf}
+.config{border-top:1px solid #243241;margin-top:8px;padding-top:12px;display:grid;grid-template-columns:220px 1fr;gap:18px}
+.config-title{font:10px "Courier New",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#91a0ae;line-height:1.7}.config-list{display:flex;gap:10px;flex-wrap:wrap}.env{border:1px solid #2a3d4a;background:#111a24;padding:8px 10px;color:#aab8c0;font:10px "Courier New",monospace}.env span{color:#56e1cf}.env.warn span{color:#ffb15c}.foot{position:absolute;left:72px;right:72px;bottom:18px;border-top:1px solid #243241;padding-top:11px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="eyebrow">07 / Deployment topology</div>
+  <h1>Cloudflare at the edge.<br /><span style="color:#56e1cf">Render as the live brain.</span></h1>
+  <p class="lead"><strong>Public browser traffic stays simple.</strong> Provider credentials, ingestion loops, AI calls, and future persistence remain server-side.</p>
+  <section class="topology">
+    <div class="node browser"><div class="node-code">Analyst</div><h2>Browser</h2><p>HTTPS reads<br />WSS live stream</p></div>
+    <div class="node cloudflare"><div class="node-code">Edge / public</div><h2>Cloudflare Pages</h2><p>Next.js situation room<br />NEXT_PUBLIC_API_BASE</p></div>
+    <div class="node render"><div class="node-code">Core / persistent API</div><h2>Render FastAPI service</h2><p>Normalized event store, ingestion supervisor, WebSocket hub, and Pulse AI route.</p><div class="subline">One instance first · shared bus next</div></div>
+    <div class="node source usgs"><div class="node-code">Source 01</div><h2>USGS GeoJSON</h2><p>Real-time earthquake feed<br />all_hour.geojson</p></div>
+    <div class="node source firms"><div class="node-code">Source 02</div><h2>NASA FIRMS</h2><p>MAP_KEY-protected CSV<br />VIIRS active fires</p></div>
+    <div class="node source ai"><div class="node-code">AI provider</div><h2>OpenAI-compatible</h2><p>Optional grounded model<br />server-side key only</p></div>
+    <div class="node source data"><div class="node-code">Next scale</div><h2>PostGIS</h2><p>Durable event history<br />spatial queries</p></div>
+    <div class="node source data2"><div class="node-code">Next scale</div><h2>Redis Streams</h2><p>Shared fan-out<br />multi-instance hub</p></div>
+    <div class="connector h1"></div><div class="connector h2"></div><div class="connector h3"></div><div class="connector v1"></div><div class="connector v2"></div><div class="connector v3"></div><div class="connector v4"></div><div class="connector v5"></div><div class="connector v6"></div>
+    <div class="arrow a1">→</div><div class="arrow a2">→</div><div class="arrow a3">→</div><div class="arrow down">↓</div>
+    <div class="boundary">Browser boundary / <span>no provider secrets cross this line</span></div>
+  </section>
+  <section class="config"><div class="config-title">Server-side configuration<br />owned by Render</div><div class="config-list"><div class="env"><span>FIRMS_MAP_KEY</span></div><div class="env"><span>OPENAI_API_KEY</span></div><div class="env"><span>OPENAI_MODEL</span></div><div class="env warn"><span>ALLOWED_ORIGINS</span></div><div class="env warn"><span>INGESTION_INTERVAL_SECONDS</span></div></div></section>
+  <div class="foot"><span>WORLD PULSE / EDGE → LIVE SERVICE → SOURCE NETWORK</span><span>HTTPS · WSS · SERVER-SIDE SECRETS</span></div>
+</div>
+</body>
+</html>

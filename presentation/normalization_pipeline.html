@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Normalization pipeline</title>
+<style>
+*{box-sizing:border-box}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;padding:56px 72px 0}
+.eyebrow{font:10px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}
+h1{font-size:47px;line-height:1.02;letter-spacing:-2.5px;margin:18px 0 9px} .intro{color:#91a0ae;font-size:15px;line-height:1.5;max-width:650px;margin:0}
+.rule{height:1px;background:#243241;margin-top:34px}
+.pipeline{display:flex;align-items:stretch;margin-top:32px;min-height:176px}
+.source-stack{width:170px;display:flex;flex-direction:column;gap:12px}.source{height:78px;border:1px solid #2c5860;background:#111a24;padding:15px 14px}.source .source-code{font:10px "Courier New",monospace;letter-spacing:1px;color:#56e1cf;text-transform:uppercase}.source strong{display:block;font-size:13px;margin-top:7px}.source span{display:block;color:#91a0ae;font:10px "Courier New",monospace;margin-top:5px}
+.arrow{width:36px;display:flex;align-items:center;justify-content:center;color:#56e1cf;font:23px "Courier New",monospace}
+.stage{width:178px;min-height:176px;border:1px solid #2a3d4a;background:#111a24;padding:18px 15px 0;display:flex;flex-direction:column;justify-content:space-between}.stage.store{border-color:#347b77;background:#10252a}.stage-no{font:26px "Courier New",monospace;color:#56e1cf}.stage h2{font-size:16px;line-height:1.12;margin:9px 0 0}.stage p{font-size:11px;line-height:1.42;color:#91a0ae;margin:0}.stage-code{font:9px "Courier New",monospace;color:#6e8790;border-top:1px solid #243241;padding-top:10px;margin-top:14px;text-transform:uppercase;letter-spacing:.4px}
+/* Reduced vertical gap above outputs to prevent overflow */
+.outputs{margin-top:18px;border-top:1px solid #243241;padding-top:22px;display:grid;grid-template-columns:170px 1fr;gap:36px}.outputs-label{font:10px "Courier New",monospace;letter-spacing:1.5px;color:#91a0ae;text-transform:uppercase;line-height:1.6}.output-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.output{min-height:105px;border-top:2px solid #56e1cf;padding-top:13px}.output:nth-child(2){border-color:#ffb15c}.output:nth-child(3){border-color:#ff6474}.output-code{font:10px "Courier New",monospace;color:#56e1cf;letter-spacing:1px;text-transform:uppercase}.output:nth-child(2) .output-code{color:#ffb15c}.output:nth-child(3) .output-code{color:#ff6474}.output h3{font-size:16px;margin:8px 0 6px}.output p{font-size:11px;line-height:1.42;color:#91a0ae;margin:0;max-width:240px}.footer{position:absolute;bottom:27px;left:72px;right:72px;border-top:1px solid #243241;padding-top:11px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+/* Remove default body margin to avoid extra page offset */
+body{margin:0}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="eyebrow">03 / Source-to-signal architecture</div>
+  <h1>Every source becomes<br /><span style="color:#56e1cf">one event contract.</span></h1>
+  <p class="intro">Adapters keep source-specific complexity at the edge. The product receives a consistent, explainable signal model.</p>
+  <div class="rule"></div>
+  <section class="pipeline">
+    <div class="source-stack"><div class="source"><div class="source-code">USGS</div><strong>Earthquake GeoJSON</strong><span>id · magnitude · place</span></div><div class="source"><div class="source-code">NASA FIRMS</div><strong>Active-fire CSV</strong><span>FRP · confidence · time</span></div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div><div class="stage-no">01</div><h2>Source<br />adapters</h2></div><p>Fetch, parse, and preserve source identity.</p><div class="stage-code">usgs.py / firms.py</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div><div class="stage-no">02</div><h2>Validate +<br />normalize</h2></div><p>One schema for time, place, severity, and metadata.</p><div class="stage-code">Event contract</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div><div class="stage-no">03</div><h2>Deduplicate +<br />cluster</h2></div><p>Stable IDs for quakes; coarse cells for fire detections.</p><div class="stage-code">quality gate</div></div>
+    <div class="arrow">→</div>
+    <div class="stage store"><div><div class="stage-no">04</div><h2>Event<br />store</h2></div><p>Latest normalized state, ready for reads and fan-out.</p><div class="stage-code">in-memory → PostGIS</div></div>
+  </section>
+  <section class="outputs"><div class="outputs-label">One store.<br />Three surfaces.</div><div class="output-grid"><div class="output"><div class="output-code">HTTP / READ</div><h3>Filtered API</h3><p>Search, category filters, stats, and event detail reads remain predictable.</p></div><div class="output"><div class="output-code">WS / LIVE</div><h3>WebSocket hub</h3><p>Typed upserts, removals, heartbeats, and snapshots update the room in place.</p></div><div class="output"><div class="output-code">AI / CONTEXT</div><h3>Pulse AI</h3><p>Answers are grounded in the active event view, including source and time.</p></div></div></section>
+  <div class="footer"><span>WORLD PULSE / V0.3–V0.4</span><span>ADAPTERS → CONTRACT → STORE → DELIVERY</span></div>
+</div>
+</body>
+</html>

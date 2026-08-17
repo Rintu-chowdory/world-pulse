@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>V0.3 Source Layer</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;padding:56px 72px 0;position:relative;margin-top:-1px}
+.eyebrow{font:10px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}
+h1{font-size:48px;line-height:1;letter-spacing:-3px;margin:20px 0 12px;max-width:760px} .intro{color:#91a0ae;font-size:15px;line-height:1.55;max-width:690px;margin:0}
+.header-rule{height:1px;background:#243241;margin-top:35px}.source-row{display:grid;grid-template-columns:88px 270px 255px 1fr;gap:22px;align-items:center;min-height:170px;border-bottom:1px solid #243241}.source-row:first-of-type{border-top:1px solid #243241}.source-no{font:36px "Courier New",monospace;color:#56e1cf}.source-name{font-size:22px;font-weight:700;letter-spacing:-.6px}.source-name small{display:block;font:10px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase;color:#91a0ae;margin-top:9px;line-height:1.5}.source-method{font:11px/1.7 "Courier New",monospace;color:#aab8c0}.source-method strong{display:block;font-weight:400;color:#ffb15c;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}.source-method.firms strong{color:#ff6474}.fields{display:flex;flex-wrap:wrap;gap:7px}.field{border:1px solid #2b3e4c;color:#c2d1d3;padding:8px 10px;font:10px "Courier New",monospace;letter-spacing:.3px;background:#111a24}.field.cyan{color:#56e1cf;border-color:#34615e}.field.amber{color:#ffb15c;border-color:#604b32}.field.red{color:#ff6474;border-color:#61343c}.bottom{display:flex;justify-content:space-between;align-items:flex-start;margin-top:26px}.bottom p{font:11px/1.55 "Courier New",monospace;color:#60717c;max-width:760px;margin:0}.bottom p strong{color:#edf4f6;font-weight:400}.legend{font:10px "Courier New",monospace;color:#536371;text-align:right;line-height:1.8;text-transform:uppercase}.legend b{font-weight:400;color:#56e1cf}.foot{position:absolute;left:72px;right:72px;bottom:28px;border-top:1px solid #243241;padding-top:12px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="eyebrow">03 / V0.3 source layer</div>
+  <h1>From demo markers to <span style="color:#56e1cf">real signals.</span></h1>
+  <p class="intro">Two public data systems establish the first trusted source network. Each adapter preserves source identity while producing one common World Pulse event contract.</p>
+  <div class="header-rule"></div>
+  <section class="source-row">
+    <div class="source-no">01</div>
+    <div class="source-name">USGS Earthquakes<small>Earthquake Hazards Program<br />real-time global feed</small></div>
+    <div class="source-method"><strong>GeoJSON / all_hour</strong>Poll the real-time feed, then retain event ID, origin time, place, magnitude, depth, and source URL.</div>
+    <div class="fields"><span class="field cyan">magnitude</span><span class="field cyan">place</span><span class="field cyan">depth_km</span><span class="field cyan">timestamp</span><span class="field cyan">source_url</span><span class="field amber">severity</span></div>
+  </section>
+  <section class="source-row">
+    <div class="source-no" style="color:#ff6474">02</div>
+    <div class="source-name">NASA FIRMS<small>Active fire detections<br />MODIS + VIIRS satellites</small></div>
+    <div class="source-method firms"><strong>MAP_KEY / CSV area</strong>Query a bounded time window, parse detections, then aggregate hotspots into coarse spatial clusters.</div>
+    <div class="fields"><span class="field red">detections</span><span class="field red">max_frp</span><span class="field red">confidence</span><span class="field red">satellite</span><span class="field red">daynight</span><span class="field amber">cluster_id</span></div>
+  </section>
+  <div class="bottom"><p><strong>Normalization principle.</strong> Raw provider records remain auditable, but the product only broadcasts compact, spatially meaningful events. FIRMS volume is bounded before it reaches the map.</p><div class="legend"><b>USGS</b> seismic signal<br /><span style="color:#ff6474">FIRMS</span> thermal signal</div></div>
+  <div class="foot"><span>WORLD PULSE / SOURCE NETWORK</span><span>USGS · NASA FIRMS · NORMALIZED EVENTS</span></div>
+</div>
+</body>
+</html>

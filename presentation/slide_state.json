@@ -1,0 +1,122 @@
+{
+  "project_info": {
+    "title": "World Pulse",
+    "created": 1786999752.934,
+    "last_updated": 1787000252.594,
+    "total_slides": 10
+  },
+  "slides": [
+    {
+      "id": "world_pulse",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "product_thesis",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "situation_room",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "source_layer",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "normalization_pipeline",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "live_event_engine",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "websocket_delivery",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "pulse_ai",
+      "state": "edited",
+      "pageNum": 8
+    },
+    {
+      "id": "deployment_topology",
+      "state": "edited",
+      "pageNum": 9
+    },
+    {
+      "id": "reliability_roadmap",
+      "state": "edited",
+      "pageNum": 10
+    }
+  ],
+  "outline": [
+    {
+      "id": "world_pulse",
+      "title": "World Pulse",
+      "summary": "AI-powered global situation room: see what is happening, understand why it matters, and decide what to watch next.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "product_thesis",
+      "title": "The product thesis",
+      "summary": "Turn global noise into an answerable operating picture with one geospatial view, live updates, and grounded AI.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "situation_room",
+      "title": "Situation-room experience",
+      "summary": "Show the three levels of clarity: overview, map, and ask.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "source_layer",
+      "title": "V0.3 source layer",
+      "summary": "Introduce USGS and NASA FIRMS as real data sources and explain normalized outputs.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "normalization_pipeline",
+      "title": "Normalization pipeline",
+      "summary": "Diagram how source adapters, validation, deduplication, clustering, and the event store feed HTTP, WebSocket, and AI layers.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "live_event_engine",
+      "title": "V0.4 live event engine",
+      "summary": "Explain the lifecycle-managed ingestion supervisor, independent pollers, typed change events, and scale path.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "websocket_delivery",
+      "title": "WebSocket delivery",
+      "summary": "Show how the browser receives an initial snapshot and live event changes without repeated refreshes.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "pulse_ai",
+      "title": "Pulse AI",
+      "summary": "Explain grounded answers, guided prompts, uncertainty handling, provider fallback, and future intelligence.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "deployment_topology",
+      "title": "Deployment topology",
+      "summary": "Show Cloudflare at the edge, Render as the live FastAPI service, external sources, AI provider, and next-scale data services.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "reliability_roadmap",
+      "title": "Reliability, trust, and roadmap",
+      "summary": "Close with transparent degradation, production evolution, and the path from V0.3/V0.4 to V1.0.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

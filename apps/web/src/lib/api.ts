@@ -65,6 +65,16 @@ export async function askPulse(question: string, events: PulseEvent[]): Promise<
   return res.json();
 }
 
+export function connectToEventStream(onMessage: (message: { type: string; events?: PulseEvent[]; event?: PulseEvent; event_id?: string }) => void) {
+  const httpUrl = new URL(API_BASE);
+  const protocol = httpUrl.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(`${protocol}//${httpUrl.host}/ws/events`);
+  socket.onmessage = (message) => {
+    try { onMessage(JSON.parse(message.data)); } catch { /* ignore malformed provider messages */ }
+  };
+  return socket;
+}
+
 export const CATEGORY_META: Record<
   EventCategory,
   { label: string; icon: string; color: string }

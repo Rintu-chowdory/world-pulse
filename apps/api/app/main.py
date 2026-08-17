@@ -1,54 +1,20 @@
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-from typing import Optional
+from __future__ import annotations
+
 import json
 import os
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from urllib import request as urllib_request
-from urllib.error import URLError, HTTPError
+from urllib.error import HTTPError, URLError
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 
-app = FastAPI(title="World Pulse API", version="0.2.0")
-allowed_origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
-app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
+from .ingestion import EventStore, IngestionSupervisor, WebSocketHub
+from .main_types import AskRequest, AskResponse, Event, EventCategory, EventSeverity
 
-class EventCategory(str, Enum):
-    earthquake = "earthquake"
-    wildfire = "wildfire"
-    flood = "flood"
-    storm = "storm"
-    volcano = "volcano"
 
-class EventSeverity(str, Enum):
-    critical = "critical"
-    warning = "warning"
-    advisory = "advisory"
-    normal = "normal"
-
-class Event(BaseModel):
-    id: str
-    category: EventCategory
-    severity: EventSeverity
-    title: str
-    location: str
-    lat: float
-    lon: float
-    magnitude: Optional[float] = None
-    timestamp: datetime
-    source: str
-
-class AskRequest(BaseModel):
-    question: str = Field(min_length=3, max_length=500)
-    events: list[Event] = Field(default_factory=list, max_length=100)
-
-class AskResponse(BaseModel):
-    answer: str
-    mode: str
-    sources: list[str]
-
-def _demo_events() -> list[Event]:
+def demo_events() -> list[Event]:
     now = datetime.now(timezone.utc)
     raw = [
         ("eq-1", EventCategory.earthquake, EventSeverity.warning, "Earthquake M6.2", "Japan", 35.68, 139.69, 6.2, 2),
@@ -61,37 +27,6 @@ def _demo_events() -> list[Event]:
     ]
     return [Event(id=r[0], category=r[1], severity=r[2], title=r[3], location=r[4], lat=r[5], lon=r[6], magnitude=r[7], timestamp=now - timedelta(minutes=r[8]), source="Demo Data Source") for r in raw]
 
-DEMO_EVENTS = _demo_events()
-
-@app.get("/api/v1/health")
-def health():
-    return {"status": "ok", "time": datetime.now(timezone.utc)}
-
-@app.get("/api/v1/events", response_model=list[Event])
-def list_events(category: Optional[EventCategory] = None, severity: Optional[EventSeverity] = None, q: Optional[str] = Query(default=None, description="Search title or location")):
-    events = DEMO_EVENTS
-    if category:
-        events = [e for e in events if e.category == category]
-    if severity:
-        events = [e for e in events if e.severity == severity]
-    if q:
-        needle = q.lower()
-        events = [e for e in events if needle in e.title.lower() or needle in e.location.lower()]
-    return sorted(events, key=lambda e: e.timestamp, reverse=True)
-
-@app.get("/api/v1/events/{event_id}", response_model=Event)
-def get_event(event_id: str):
-    for event in DEMO_EVENTS:
-        if event.id == event_id:
-            return event
-    return {"error": "not found"}
-
-@app.get("/api/v1/stats")
-def stats():
-    counts = {}
-    for event in DEMO_EVENTS:
-        counts[event.category.value] = counts.get(event.category.value, 0) + 1
-    return {"total": len(DEMO_EVENTS), "by_category": counts, "live": True}
 
 def _fallback_answer(question: str, events: list[Event]) -> str:
     if not events:
@@ -109,7 +44,8 @@ def _fallback_answer(question: str, events: list[Event]) -> str:
         return f"Activity is currently distributed across {locations}. The map contains {len(events)} indexed events across {len(categories)} categories."
     return f"The current view contains {len(events)} events across {len(categories)} categories. The freshest signals are {locations}. Ask about risk, regions, or critical events for a more focused read."
 
-def _ai_answer(question: str, events: list[Event]) -> Optional[str]:
+
+def _ai_answer(question: str, events: list[Event]) -> str | None:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -123,9 +59,79 @@ def _ai_answer(question: str, events: list[Event]) -> Optional[str]:
     except (KeyError, IndexError, HTTPError, URLError, TimeoutError, json.JSONDecodeError):
         return None
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    store = EventStore(demo_events())
+    hub = WebSocketHub()
+    supervisor = IngestionSupervisor(store, hub)
+    app.state.event_store = store
+    app.state.websocket_hub = hub
+    app.state.ingestion = supervisor
+    await supervisor.start()
+    yield
+    await supervisor.stop()
+
+
+app = FastAPI(title="World Pulse API", version="0.4.0", lifespan=lifespan)
+allowed_origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
+
+
+@app.get("/api/v1/health")
+async def health():
+    store: EventStore = app.state.event_store
+    return {"status": "ok", "time": datetime.now(timezone.utc), "events": len(await store.snapshot()), "live_ingestion": app.state.ingestion.enabled}
+
+
+@app.get("/api/v1/events", response_model=list[Event])
+async def list_events(category: EventCategory | None = None, severity: EventSeverity | None = None, q: str | None = Query(default=None, description="Search title or location")):
+    events = await app.state.event_store.snapshot()
+    if category:
+        events = [event for event in events if event.category == category]
+    if severity:
+        events = [event for event in events if event.severity == severity]
+    if q:
+        needle = q.lower()
+        events = [event for event in events if needle in event.title.lower() or needle in event.location.lower()]
+    return events
+
+
+@app.get("/api/v1/events/{event_id}", response_model=Event)
+async def get_event(event_id: str):
+    events = await app.state.event_store.snapshot()
+    for event in events:
+        if event.id == event_id:
+            return event
+    return {"error": "not found"}
+
+
+@app.get("/api/v1/stats")
+async def stats():
+    events = await app.state.event_store.snapshot()
+    counts: dict[str, int] = {}
+    for event in events:
+        counts[event.category.value] = counts.get(event.category.value, 0) + 1
+    return {"total": len(events), "by_category": counts, "live": True, "sources": sorted({event.source for event in events})}
+
+
 @app.post("/api/v1/ask", response_model=AskResponse)
-def ask_pulse(payload: AskRequest):
-    events = payload.events or DEMO_EVENTS
+async def ask_pulse(payload: AskRequest):
+    events = payload.events or await app.state.event_store.snapshot()
     answer = _ai_answer(payload.question, events)
-    mode = "ai" if answer else "fallback"
-    return AskResponse(answer=answer or _fallback_answer(payload.question, events), mode=mode, sources=sorted({event.source for event in events}))
+    return AskResponse(answer=answer or _fallback_answer(payload.question, events), mode="ai" if answer else "fallback", sources=sorted({event.source for event in events}))
+
+
+@app.websocket("/ws/events")
+async def events_websocket(websocket: WebSocket):
+    hub: WebSocketHub = app.state.websocket_hub
+    store: EventStore = app.state.event_store
+    await hub.connect(websocket)
+    try:
+        await websocket.send_json({"type": "snapshot", "events": [event.model_dump(mode="json") for event in await store.snapshot()], "sent_at": datetime.now(timezone.utc).isoformat()})
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await hub.disconnect(websocket)
+    except Exception:
+        await hub.disconnect(websocket)

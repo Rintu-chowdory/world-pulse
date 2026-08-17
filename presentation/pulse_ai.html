@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pulse AI</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1118;color:#edf4f6;font-family:Arial,Helvetica,sans-serif;position:relative;padding:56px 72px 0}
+.eyebrow{font:10px "Courier New",monospace;letter-spacing:2px;text-transform:uppercase;color:#56e1cf}
+h1{font-size:49px;line-height:1;letter-spacing:-3px;margin:20px 0 10px}.lead{font-size:16px;line-height:1.5;color:#91a0ae;max-width:680px;margin:0}.lead span{color:#edf4f6}
+.content{display:grid;grid-template-columns:58% 42%;gap:46px;margin-top:38px}.flow{border-top:1px solid #243241}.step{min-height:112px;border-bottom:1px solid #243241;display:grid;grid-template-columns:58px 1fr 82px;align-items:center;gap:17px}.step-no{font:30px "Courier New",monospace;color:#56e1cf}.step h2{font-size:18px;margin:0 0 7px}.step p{font-size:11px;line-height:1.45;color:#91a0ae;margin:0;max-width:330px}.step-tag{font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase;color:#56e1cf;text-align:right}.step:nth-child(2) .step-tag{color:#ffb15c}.step:nth-child(3) .step-tag{color:#edf4f6}.arrow{color:#56e1cf;font:17px "Courier New",monospace;margin-left:4px}
+.trust{border-top:1px solid #243241}.trust-title{font:10px "Courier New",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#91a0ae;padding:14px 0 11px}.principle{min-height:72px;border-top:1px solid #243241;display:grid;grid-template-columns:26px 1fr;gap:11px;align-items:center}.principle-mark{font:16px "Courier New",monospace;color:#56e1cf}.principle strong{display:block;font-size:13px;margin-bottom:4px}.principle p{font-size:10px;line-height:1.4;color:#91a0ae;margin:0;max-width:340px}.principle:nth-child(3) .principle-mark{color:#ffb15c}.principle:nth-child(4) .principle-mark{color:#ff6474}
+.bottom{display:grid;grid-template-columns:58% 42%;gap:46px;margin-top:37px;border-top:1px solid #243241;padding-top:17px}.fallback-label{font:10px "Courier New",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#56e1cf;margin-bottom:10px}.fallback-line{font:11px/1.55 "Courier New",monospace;color:#aab8c0;margin:0;max-width:610px}.fallback-line b{font-weight:400;color:#edf4f6}.future{font:10px/1.7 "Courier New",monospace;color:#60717c;text-transform:uppercase}.future strong{font-weight:400;color:#ffb15c}.foot{position:absolute;left:72px;right:72px;bottom:28px;border-top:1px solid #243241;padding-top:11px;display:flex;justify-content:space-between;color:#536371;font:9px "Courier New",monospace;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="eyebrow">06 / AI decision support</div>
+  <h1>Ask the active picture.</h1>
+  <p class="lead">Pulse AI is a <span>grounded analyst layer</span> over the current event view — concise, source-aware, and explicit about uncertainty.</p>
+  <section class="content">
+    <div class="flow">
+      <div class="step"><div class="step-no">01</div><div><h2>Ask</h2><p>Guided prompts or a free-form question about a region, hazard, pattern, or priority.</p></div><div class="step-tag">Question<br /><span class="arrow">→</span></div></div>
+      <div class="step"><div class="step-no">02</div><div><h2>Ground</h2><p>Pass only the visible event records: title, location, severity, timestamp, source, and metadata.</p></div><div class="step-tag">Context<br /><span class="arrow">→</span></div></div>
+      <div class="step"><div class="step-no">03</div><div><h2>Answer</h2><p>Return the most decision-relevant signal first, with uncertainty stated and no invented impact data.</p></div><div class="step-tag">Response</div></div>
+    </div>
+    <div class="trust"><div class="trust-title">Trust boundary / what Pulse AI will not do</div><div class="principle"><div class="principle-mark">+</div><div><strong>Stay inside the event view</strong><p>Answers are grounded in the records supplied by the current situation room.</p></div></div><div class="principle"><div class="principle-mark">≈</div><div><strong>State uncertainty clearly</strong><p>Missing casualties, damage, or population impact are not inferred as facts.</p></div></div><div class="principle"><div class="principle-mark">!</div><div><strong>Degrade transparently</strong><p>Without a provider key or when the provider fails, the local event-aware fallback remains available.</p></div></div></div>
+  </section>
+  <section class="bottom"><div><div class="fallback-label">Provider strategy</div><p class="fallback-line"><b>Optional OpenAI-compatible model</b> for richer analysis. <b>Deterministic fallback</b> for resilient demos, previews, and offline operation. Secrets remain server-side.</p></div><div class="future"><strong>Next intelligence modules</strong><br />summary · classification · deduplication<br />source comparison · explainable priority</div></section>
+  <div class="foot"><span>WORLD PULSE / PULSE AI</span><span>GROUNDED ANSWERS · TRANSPARENT DEGRADATION</span></div>
+</div>
+</body>
+</html>

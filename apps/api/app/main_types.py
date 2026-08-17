@@ -33,6 +33,12 @@ class Event(BaseModel):
     source: str
     source_url: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    ai_summary: Optional[str] = None
+    ai_category: Optional[EventCategory] = None
+    ai_severity: Optional[EventSeverity] = None
+    ai_confidence: Optional[float] = Field(default=None, ge=0, le=1)
+    ai_tags: list[str] = Field(default_factory=list, max_length=8)
+    ai_rationale: Optional[str] = None
 
 
 class AskRequest(BaseModel):
@@ -44,3 +50,7 @@ class AskResponse(BaseModel):
     answer: str
     mode: str
     sources: list[str]
+
+
+class AIEnrichRequest(BaseModel):
+    event: Event

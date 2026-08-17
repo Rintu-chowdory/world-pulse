@@ -2,14 +2,14 @@
 
 World Pulse is a global event intelligence platform for seeing what is happening around the world with less noise and more context. The project combines a dark geospatial command center, live event filtering, ranked signal summaries, and Pulse AI decision support.
 
-## Current release: V0.4 — Live intelligence foundation
+## Current release: V0.8 — AI enrichment and production scaling foundation
 
-The upgraded experience includes a professional situation-room layout, responsive dark visual system, live world map framing, signal priority panel, metric strip, improved event exploration, an AI assistant with guided questions, real USGS earthquake ingestion, optional NASA FIRMS fire ingestion, normalized event contracts, a lifecycle-managed ingestion supervisor, and WebSocket delivery. The AI endpoint is grounded in the event records supplied by the current map view and returns a deterministic fallback when no model credentials are configured, so the interface remains useful in every environment.
+The upgraded experience includes a professional situation-room layout, responsive dark visual system, live world map framing, signal priority panel, metric strip, improved event exploration, an AI assistant with guided questions, real USGS earthquake ingestion, optional NASA FIRMS fire ingestion, normalized event contracts, a lifecycle-managed ingestion supervisor, WebSocket delivery, optional PostGIS persistence, Redis pub/sub fan-out, and a V0.8 OpenAI-backed summarization/classification worker. The AI endpoints use deterministic fallbacks when no model credentials are configured, so the interface remains useful in every environment.
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | Web | `apps/web` | Next.js interface, MapLibre map, filters, live feed, Pulse AI panel |
-| API | `apps/api` | FastAPI event endpoints, stats, health, AI answering route, ingestion adapters, WebSocket hub |
+| API | `apps/api` | FastAPI routes, ingestion adapters, AI enrichment workers, PostGIS repository, Redis event bus, WebSocket hub |
 | Local services | `docker-compose.yml` | Web, API, PostGIS, and Redis development services |
 
 ## Run locally without Docker
@@ -41,10 +41,15 @@ The backend supports any OpenAI-compatible chat completion endpoint. To enable m
 OPENAI_API_KEY=your-server-side-key
 OPENAI_API_BASE=https://api.openai.com/v1
 OPENAI_MODEL=gpt-5-mini
+ENABLE_AI_ENRICHMENT=true
+AI_WORKERS=2
 ALLOWED_ORIGINS=https://your-cloudflare-domain.example
+DATABASE_URL=postgresql://user:password@host:5432/worldpulse
+REDIS_URL=redis://:password@host:6379/0
+DB_POOL_MAX=10
 ```
 
-`OPENAI_API_KEY` is read only by FastAPI and is never sent to the browser. If it is absent or the provider is unavailable, `/api/v1/ask` uses the local event-aware fallback response. This makes preview deployments and local demos work without a secret.
+`OPENAI_API_KEY` is read only by FastAPI and is never sent to the browser. If it is absent or the provider is unavailable, `/api/v1/ask` uses the local event-aware fallback response and `/api/v1/ai/enrich` uses deterministic event classification. The background V0.8 worker is opt-in through `ENABLE_AI_ENRICHMENT=true`; keep it disabled while calibrating cost, latency, and evaluation thresholds.
 
 On Cloudflare, set `NEXT_PUBLIC_API_BASE` to the public Render URL for the API, for example:
 
@@ -63,6 +68,7 @@ After changing a Cloudflare Pages environment variable, trigger a new frontend d
 | `GET` | `/api/v1/events/{event_id}` | Single event lookup |
 | `GET` | `/api/v1/stats` | Current totals by category |
 | `POST` | `/api/v1/ask` | Ask Pulse AI about a supplied event view |
+| `POST` | `/api/v1/ai/enrich` | Summarize and classify one normalized event |
 | `WS` | `/ws/events` | Receive an initial snapshot and live event changes |
 
 Example AI request:
@@ -79,7 +85,7 @@ curl -X POST https://your-render-api.example.com/api/v1/ask \
 docker compose up --build
 ```
 
-The compose setup preserves the existing PostGIS and Redis services for the next ingestion phase. The current event catalog remains demo data until the real-source ingestion work is enabled.
+The compose setup now initializes the PostGIS schema from `migrations/001_pulse_events.sql`, persists the Redis append-only log for local recovery, waits on healthchecks, and exposes production-like environment flags. Run `docker compose down -v` once when you need to recreate the database from the migration after schema changes.
 
 ## V0.3/V0.4 live data and operations
 
@@ -87,6 +93,26 @@ USGS ingestion polls the official real-time GeoJSON feed and normalizes earthqua
 
 The first live deployment is intentionally single-instance. For horizontal scaling, move the event store to PostGIS, move fan-out to Redis Streams or Pub/Sub, and add replay cursors for reconnecting clients. Keep the browser on HTTP for filtered reads and AI requests, and use WSS only for live event-state changes.
 
+## V0.8 AI summarization and classification
+
+The V0.8 engine is deliberately split into synchronous and asynchronous paths. `/api/v1/ai/enrich` processes one normalized event immediately. When `ENABLE_AI_ENRICHMENT=true`, the background worker consumes a bounded queue and enriches new source events asynchronously. OpenAI-compatible calls request strict JSON Schema output containing `summary`, `category`, `severity`, `confidence`, `tags`, `rationale`, `generated_at`, and `model`. Every response is validated by Pydantic before it is persisted or broadcast. The model sees only the normalized event record and must not infer casualties, damage, or impact that are absent from the source.
+
+Use `gpt-5-mini` as the default high-volume classifier/summarizer. For offline backfills, nightly evaluations, and large historical reclassification jobs, use OpenAI Batch API rather than synchronous calls. Keep a programmatic quality gate around schema validation, confidence bounds, summary length, and category/severity agreement with deterministic rules; route failures to retry or human review rather than silently accepting them. Structured Outputs are preferred over JSON mode because the API enforces the supplied schema.[1] Batch processing is designed for asynchronous classification and offers a separate rate-limit pool and lower cost than synchronous processing.[2]
+
+## PostGIS and Redis production scaling
+
+Set `DATABASE_URL` to a managed Postgres/PostGIS instance and apply `migrations/001_pulse_events.sql` once with a migration runner or `psql`. The `pulse_events.geom` column uses SRID 4326 and a GiST index for spatial queries; timestamps, source, category, severity, and metadata also have indexes for the event feed and AI context. Set `DB_POOL_MAX` conservatively per Render instance so the total connection count stays below the database plan limit.
+
+Set `REDIS_URL` to a managed Redis instance. The API publishes typed event messages to `world-pulse:events`; every API instance subscribes and fans the messages to its own WebSocket clients. Without `REDIS_URL`, the app automatically falls back to the existing in-process hub, which is useful for local development but is not sufficient for multi-instance production. Keep Redis credentials server-side and use TLS URLs when the provider requires them.
+
+For Render, deploy the API as a long-running web service with WebSocket support, configure the environment variables above, run the migration before enabling multiple instances, and verify `/api/v1/health` reports `postgis: true` and `redis: true`. The frontend continues to use HTTP for reads and AI requests and WSS for live event-state changes.
+
 ## Roadmap
 
-The next production steps are durable event history, GDACS and weather adapters, replay cursors, alert subscriptions, authentication, observability, and source-quality workflows. Pulse AI is intentionally implemented behind a single backend route so summaries, classification, source citations, and future retrieval can be added without exposing provider credentials to the client.
+The next production steps are GDACS and weather adapters, replay cursors, alert subscriptions, authentication, observability, source-quality workflows, and a formal AI evaluation dashboard. Pulse AI remains behind server-side routes so provider credentials never reach the browser.
+
+## References
+
+[1] [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+
+[2] [OpenAI Batch API](https://developers.openai.com/api/docs/guides/batch)

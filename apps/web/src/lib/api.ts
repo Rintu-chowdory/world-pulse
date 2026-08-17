@@ -18,6 +18,14 @@ export interface PulseEvent {
   magnitude: number | null;
   timestamp: string;
   source: string;
+  source_url?: string | null;
+  metadata?: Record<string, unknown>;
+  ai_summary?: string | null;
+  ai_category?: EventCategory | null;
+  ai_severity?: EventSeverity | null;
+  ai_confidence?: number | null;
+  ai_tags?: string[];
+  ai_rationale?: string | null;
 }
 
 export interface Stats {
@@ -65,7 +73,7 @@ export async function askPulse(question: string, events: PulseEvent[]): Promise<
   return res.json();
 }
 
-export function connectToEventStream(onMessage: (message: { type: string; events?: PulseEvent[]; event?: PulseEvent; event_id?: string }) => void) {
+export function connectToEventStream(onMessage: (message: { type: string; events?: PulseEvent[]; event?: PulseEvent; event_id?: string; source?: string; count?: number; sent_at?: string }) => void) {
   const httpUrl = new URL(API_BASE);
   const protocol = httpUrl.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(`${protocol}//${httpUrl.host}/ws/events`);

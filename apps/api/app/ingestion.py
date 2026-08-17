@@ -119,13 +119,20 @@ class EventChange:
 
 
 class EventStore:
-    def __init__(self, initial_events: list[Event] | None = None):
+    def __init__(self, initial_events: list[Event] | None = None, repository: Any | None = None):
         self._events: dict[str, Event] = {event.id: event for event in (initial_events or [])}
         self._lock = asyncio.Lock()
+        self.repository = repository
 
     async def snapshot(self) -> list[Event]:
         async with self._lock:
             return sorted(self._events.values(), key=lambda event: event.timestamp, reverse=True)
+
+    async def upsert_event(self, event: Event) -> None:
+        async with self._lock:
+            self._events[event.id] = event
+        if self.repository:
+            await self.repository.upsert(event)
 
     async def replace_source(self, source: str, incoming: list[Event]) -> list[EventChange]:
         async with self._lock:
@@ -137,10 +144,17 @@ class EventStore:
                 self._events[event.id] = event
                 if previous != event:
                     changes.append(EventChange(kind="event.upsert", event=event))
-            for event_id in old_source_ids - incoming_ids:
+            removed_ids = old_source_ids - incoming_ids
+            for event_id in removed_ids:
                 del self._events[event_id]
                 changes.append(EventChange(kind="event.remove", event_id=event_id))
-            return changes
+        if self.repository:
+            for event in incoming:
+                await self.repository.upsert(event)
+            for event_id in removed_ids:
+                await self.repository.delete(event_id)
+            await self.repository.replace_source(source, incoming_ids)
+        return changes
 
 
 class WebSocketHub:
@@ -171,9 +185,11 @@ class WebSocketHub:
 
 
 class IngestionSupervisor:
-    def __init__(self, store: EventStore, hub: WebSocketHub):
+    def __init__(self, store: EventStore, hub: WebSocketHub, broadcaster: Any | None = None, on_event: Any | None = None):
         self.store = store
         self.hub = hub
+        self.broadcaster = broadcaster or hub
+        self.on_event = on_event
         self.task: asyncio.Task | None = None
         self.enabled = os.getenv("ENABLE_LIVE_INGESTION", "true").lower() not in {"0", "false", "no"}
         self.interval = max(30, int(os.getenv("INGESTION_INTERVAL_SECONDS", "60")))
@@ -195,16 +211,18 @@ class IngestionSupervisor:
             changes = await self.store.replace_source(name, events)
             for change in changes:
                 payload = {"type": change.kind, "event": change.event.model_dump(mode="json") if change.event else None, "event_id": change.event_id, "source": name, "sent_at": utc_now().isoformat()}
-                await self.hub.broadcast(payload)
+                await self.broadcaster.publish(payload)
+                if change.event and self.on_event:
+                    await self.on_event(change.event)
             if changes:
-                await self.hub.broadcast({"type": "snapshot.updated", "count": len(await self.store.snapshot()), "source": name, "sent_at": utc_now().isoformat()})
+                await self.broadcaster.publish({"type": "snapshot.updated", "count": len(await self.store.snapshot()), "source": name, "sent_at": utc_now().isoformat()})
             logger.info("ingested %s events from %s", len(events), name)
         except (HTTPError, URLError, TimeoutError, ValueError) as exc:
             logger.warning("source %s unavailable: %s", name, exc)
-            await self.hub.broadcast({"type": "source.error", "source": name, "message": str(exc), "sent_at": utc_now().isoformat()})
+            await self.broadcaster.publish({"type": "source.error", "source": name, "message": str(exc), "sent_at": utc_now().isoformat()})
 
     async def _run(self) -> None:
         while True:
             await asyncio.gather(self._poll_source("USGS", fetch_usgs_events), self._poll_source("NASA FIRMS", fetch_firms_events))
-            await self.hub.broadcast({"type": "heartbeat", "sent_at": utc_now().isoformat()})
+            await self.broadcaster.publish({"type": "heartbeat", "sent_at": utc_now().isoformat()})
             await asyncio.sleep(self.interval)

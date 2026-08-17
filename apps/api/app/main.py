@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -10,8 +11,13 @@ from urllib.error import HTTPError, URLError
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from .ai_engine import AIEnrichmentEngine
 from .ingestion import EventStore, IngestionSupervisor, WebSocketHub
-from .main_types import AskRequest, AskResponse, Event, EventCategory, EventSeverity
+from .main_types import AIEnrichRequest, AskRequest, AskResponse, Event, EventCategory, EventSeverity
+from .persistence import PostgresEventRepository
+from .scaling import RedisEventBus
+
+logger = logging.getLogger("world_pulse.api")
 
 
 def demo_events() -> list[Event]:
@@ -62,18 +68,43 @@ def _ai_answer(question: str, events: list[Event]) -> str | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    store = EventStore(demo_events())
+    repository: PostgresEventRepository | None = None
+    candidate_repository = PostgresEventRepository()
+    if candidate_repository.enabled:
+        try:
+            await candidate_repository.start()
+            repository = candidate_repository
+        except Exception as exc:
+            logger.warning("PostGIS unavailable; using in-process event store: %s", exc)
+    initial_events = await repository.load_events() if repository else []
+    store = EventStore(initial_events or demo_events(), repository=repository)
     hub = WebSocketHub()
-    supervisor = IngestionSupervisor(store, hub)
+    bus = RedisEventBus(hub)
+
+    async def on_ai_enriched(enriched: Event, enrichment: object) -> None:
+        await store.upsert_event(enriched)
+        await bus.publish({"type": "event.ai_enriched", "event": enriched.model_dump(mode="json"), "enrichment": getattr(enrichment, "model_dump", lambda **_: enrichment)(mode="json"), "sent_at": datetime.now(timezone.utc).isoformat()})
+
+    ai_engine = AIEnrichmentEngine(on_enriched=on_ai_enriched)
+    await bus.start()
+    await ai_engine.start()
+    supervisor = IngestionSupervisor(store, hub, broadcaster=bus, on_event=ai_engine.enqueue)
     app.state.event_store = store
     app.state.websocket_hub = hub
     app.state.ingestion = supervisor
+    app.state.repository = repository
+    app.state.event_bus = bus
+    app.state.ai_engine = ai_engine
     await supervisor.start()
     yield
     await supervisor.stop()
+    await ai_engine.stop()
+    await bus.stop()
+    if repository:
+        await repository.stop()
 
 
-app = FastAPI(title="World Pulse API", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="World Pulse API", version="0.8.0", lifespan=lifespan)
 allowed_origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 
@@ -81,7 +112,7 @@ app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=
 @app.get("/api/v1/health")
 async def health():
     store: EventStore = app.state.event_store
-    return {"status": "ok", "time": datetime.now(timezone.utc), "events": len(await store.snapshot()), "live_ingestion": app.state.ingestion.enabled}
+    return {"status": "ok", "time": datetime.now(timezone.utc), "events": len(await store.snapshot()), "live_ingestion": app.state.ingestion.enabled, "postgis": bool(app.state.repository), "redis": app.state.event_bus.distributed, "ai_enrichment": app.state.ai_engine.enabled}
 
 
 @app.get("/api/v1/events", response_model=list[Event])
@@ -112,14 +143,20 @@ async def stats():
     counts: dict[str, int] = {}
     for event in events:
         counts[event.category.value] = counts.get(event.category.value, 0) + 1
-    return {"total": len(events), "by_category": counts, "live": True, "sources": sorted({event.source for event in events})}
+    return {"total": len(events), "by_category": counts, "live": app.state.ingestion.enabled, "sources": sorted({event.source for event in events}), "postgis": bool(app.state.repository), "redis": app.state.event_bus.distributed}
 
 
 @app.post("/api/v1/ask", response_model=AskResponse)
 async def ask_pulse(payload: AskRequest):
     events = payload.events or await app.state.event_store.snapshot()
-    answer = _ai_answer(payload.question, events)
+    answer = await __import__("asyncio").to_thread(_ai_answer, payload.question, events)
     return AskResponse(answer=answer or _fallback_answer(payload.question, events), mode="ai" if answer else "fallback", sources=sorted({event.source for event in events}))
+
+
+@app.post("/api/v1/ai/enrich")
+async def enrich_event(payload: AIEnrichRequest):
+    enriched, enrichment = await app.state.ai_engine.enrich_now(payload.event)
+    return {"event": enriched, "enrichment": enrichment}
 
 
 @app.websocket("/ws/events")

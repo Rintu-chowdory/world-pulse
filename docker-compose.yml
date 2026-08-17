@@ -4,36 +4,69 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   api:
     build: ./apps/api
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://pulse:pulse@postgres:5432/worldpulse
-      - REDIS_URL=redis://redis:6379/0
+      DATABASE_URL: postgresql://pulse:pulse@postgres:5432/worldpulse
+      REDIS_URL: redis://redis:6379/0
+      ENABLE_LIVE_INGESTION: ${ENABLE_LIVE_INGESTION:-true}
+      INGESTION_INTERVAL_SECONDS: ${INGESTION_INTERVAL_SECONDS:-60}
+      ENABLE_AI_ENRICHMENT: ${ENABLE_AI_ENRICHMENT:-false}
+      AI_WORKERS: ${AI_WORKERS:-2}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   postgres:
     image: postgis/postgis:16-3.4-alpine
     environment:
-      - POSTGRES_USER=pulse
-      - POSTGRES_PASSWORD=pulse
-      - POSTGRES_DB=worldpulse
+      POSTGRES_USER: pulse
+      POSTGRES_PASSWORD: pulse
+      POSTGRES_DB: worldpulse
     ports:
       - "5432:5432"
     volumes:
       - pulse_pg_data:/var/lib/postgresql/data
+      - ./migrations/001_pulse_events.sql:/docker-entrypoint-initdb.d/001_pulse_events.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulse -d worldpulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
+    volumes:
+      - pulse_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pulse_pg_data:
+  pulse_redis_data:

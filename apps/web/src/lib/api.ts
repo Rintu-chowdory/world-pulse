@@ -26,6 +26,12 @@ export interface Stats {
   live: boolean;
 }
 
+export interface AskResponse {
+  answer: string;
+  mode: "ai" | "fallback";
+  sources: string[];
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
 
 export async function fetchEvents(params?: {
@@ -45,6 +51,17 @@ export async function fetchStats(): Promise<Stats> {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch stats");
+  return res.json();
+}
+
+export async function askPulse(question: string, events: PulseEvent[]): Promise<AskResponse> {
+  const res = await fetch(new URL("/api/v1/ask", API_BASE), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, events }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to ask Pulse AI");
   return res.json();
 }
 

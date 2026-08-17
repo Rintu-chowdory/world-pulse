@@ -1,28 +1,20 @@
 # World Pulse
 
-Global event intelligence platform — "see what's happening around the world."
+World Pulse is a global event intelligence platform for seeing what is happening around the world with less noise and more context. The project combines a dark geospatial command center, live event filtering, ranked signal summaries, and Pulse AI decision support.
 
-## Status: V0.1 — Foundation
+## Current release: V0.2 — Intelligence foundation
 
-- 🌍 Global map (MapLibre, dark theme)
-- 📍 Demo event markers (earthquakes, wildfires, floods, storms, volcanoes)
-- 🔎 Event search
-- 🎛️ Category filters
-- 📡 FastAPI backend
+The upgraded experience includes a professional situation-room layout, responsive dark visual system, live world map framing, signal priority panel, metric strip, improved event exploration, and an AI assistant with guided questions. The AI endpoint is grounded in the event records supplied by the current map view and returns a deterministic fallback when no model credentials are configured, so the interface remains useful in every environment.
 
-## Structure
+| Layer | Location | Responsibility |
+| --- | --- | --- |
+| Web | `apps/web` | Next.js interface, MapLibre map, filters, live feed, Pulse AI panel |
+| API | `apps/api` | FastAPI event endpoints, stats, health, AI answering route |
+| Local services | `docker-compose.yml` | Web, API, PostGIS, and Redis development services |
 
-```
-world-pulse/
-├── apps/
-│   ├── web/     # Next.js frontend
-│   └── api/     # FastAPI backend
-├── docker-compose.yml
-```
+## Run locally without Docker
 
-## Run locally (without Docker)
-
-Backend:
+Start the API:
 
 ```bash
 cd apps/api
@@ -31,15 +23,54 @@ python3 -m venv venv
 ./venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
-Frontend:
+In a second terminal, start the web application:
 
 ```bash
 cd apps/web
-npm install
+npm ci
 npm run dev
 ```
 
-Open http://localhost:3000 — the frontend expects the API on http://127.0.0.1:8000 (see `apps/web/.env.local`).
+Open [http://localhost:3000](http://localhost:3000). The frontend reads `NEXT_PUBLIC_API_BASE` and defaults to `http://127.0.0.1:8000`.
+
+## Pulse AI configuration
+
+The backend supports any OpenAI-compatible chat completion endpoint. To enable model-backed answers on Render, configure these environment variables on the API service:
+
+```text
+OPENAI_API_KEY=your-server-side-key
+OPENAI_API_BASE=https://api.openai.com/v1
+OPENAI_MODEL=gpt-5-mini
+ALLOWED_ORIGINS=https://your-cloudflare-domain.example
+```
+
+`OPENAI_API_KEY` is read only by FastAPI and is never sent to the browser. If it is absent or the provider is unavailable, `/api/v1/ask` uses the local event-aware fallback response. This makes preview deployments and local demos work without a secret.
+
+On Cloudflare, set `NEXT_PUBLIC_API_BASE` to the public Render URL for the API, for example:
+
+```text
+NEXT_PUBLIC_API_BASE=https://your-render-api.example.com
+```
+
+After changing a Cloudflare Pages environment variable, trigger a new frontend deployment. After changing Render environment variables, redeploy the API service.
+
+## API routes
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/health` | Health check |
+| `GET` | `/api/v1/events` | Event list with `category`, `severity`, and `q` filters |
+| `GET` | `/api/v1/events/{event_id}` | Single event lookup |
+| `GET` | `/api/v1/stats` | Current totals by category |
+| `POST` | `/api/v1/ask` | Ask Pulse AI about a supplied event view |
+
+Example AI request:
+
+```bash
+curl -X POST https://your-render-api.example.com/api/v1/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"What needs attention right now?","events":[]}'
+```
 
 ## Run with Docker
 
@@ -47,12 +78,8 @@ Open http://localhost:3000 — the frontend expects the API on http://127.0.0.1:
 docker compose up --build
 ```
 
+The compose setup preserves the existing PostGIS and Redis services for the next ingestion phase. The current event catalog remains demo data until the real-source ingestion work is enabled.
+
 ## Roadmap
 
-- V0.2 World map: clusters, popups, layer toggles
-- V0.3 Disaster Tracker: real data sources (USGS, NASA FIRMS, GDACS)
-- V0.4 Live Event Engine: ingestion, normalization, WebSockets
-- V0.5 Flights, V0.6 Vessels, V0.7 Weather + Alerts
-- V0.8 AI: summaries, classification, deduplication
-- V0.9 User system: accounts, saved locations, alerts
-- V1.0 Production: CI/CD, monitoring, security
+The next production steps are real-source ingestion from USGS, NASA FIRMS, and GDACS; normalized event storage; deduplication; alert subscriptions; authentication; and observability. Pulse AI is intentionally implemented behind a single backend route so summaries, classification, source citations, and future retrieval can be added without exposing provider credentials to the client.
